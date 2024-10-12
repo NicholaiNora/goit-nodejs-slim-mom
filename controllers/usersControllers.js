@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
 import { User } from "../models/usersModel.js";
+import { Session } from "../models/sessionModel.js";
 //prettier-ignore
 import { signinValidation, signupValidation } from "../validation/validation.js";
 import { generateAccessToken } from "../helpers/generateToken.js";
@@ -52,12 +53,15 @@ const loginUser = async (req, res) => {
     res.status(409).json({ message: "Email or password is wrong" });
   }
 
-  const payload = { id: user._id, email: user.email };
+  await Session.deleteMany({ uid: user._id });
+
+  const { _id: sid } = await Session.create({ uid: user._id });
+
+  const payload = { sid, uid: user._id };
   const accessToken = generateAccessToken(payload);
   const refreshToken = jwt.sign(payload, REFRESH_SECRET_KEY);
-  console.log(refreshToken);
 
-  await User.findByIdAndUpdate(user._id, { token: refreshToken });
+  await Session.findByIdAndUpdate(sid, { token: refreshToken });
 
   res.status(200).json({
     user: {
@@ -69,12 +73,14 @@ const loginUser = async (req, res) => {
 };
 
 const tokenUser = async (req, res) => {
-  const { token } = req.user;
+  const { token } = req.session;
+
   if (!token)
     return res.status(401).json({ message: "Refresh token required" });
 
   // Check if the refresh token is valid and still exists
-  const refreshToken = await User.findOne({ token });
+  const refreshToken = await Session.findOne({ token });
+
   if (!refreshToken) {
     return res.status(403).json({ message: "Invalid refresh token" });
   }
@@ -83,23 +89,19 @@ const tokenUser = async (req, res) => {
   jwt.verify(token, REFRESH_SECRET_KEY, (err, user) => {
     if (err)
       return res.status(403).json({ message: "Token verification failed" });
-
     // Generate a new access token
     console.log(user);
-    const accessToken = generateAccessToken({
-      id: user.id,
-      email: user.email,
-    });
+    const accessToken = generateAccessToken({ uid: user.uid, sid: user.sid });
     res.json({ accessToken });
   });
 };
 
 const logoutUser = async (req, res) => {
-  const { _id } = req.user; //coming from validation next()
-  console.log(_id);
-  await User.findByIdAndUpdate(_id, { token: null });
+  const { _id } = req.session; //coming from validation next()
 
-  res.status(204).json({ message: 'Logged out successfully' });
+  await Session.findByIdAndUpdate(_id, { token: null });
+
+  res.status(204).json({ message: "Logged out successfully" });
 };
 
 //prettier-ignore

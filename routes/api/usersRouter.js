@@ -35,8 +35,8 @@ router.post("/token", authenticateRefreshToken, async (req, res, next) => {
 
 router.get("/", authenticateAccessToken, async (req, res, next) => {
   try {
-    const { _id, email, token} = req.user;
-    if (!token) {
+    const { _id, email} = req.user;
+    if (!req.session.token) {
       return res.status(401).send();
     }
     res.json({ _id, email });
