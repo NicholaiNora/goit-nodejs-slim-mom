@@ -1,11 +1,8 @@
 import express from "express";
-import {
-  loginUser,
-  logoutUser,
-  registerUser,
-  tokenUser,
-} from "../../controllers/usersControllers.js";
-import { authenticateToken } from "../../middlewares/authenticateToken.js";
+//prettier-ignore
+import { loginUser, logoutUser, registerUser, tokenUser } from "../../controllers/usersControllers.js";
+//prettier-ignore
+import { authenticateAccessToken, authenticateRefreshToken } from "../../middlewares/authenticateToken.js";
 
 const router = express.Router();
 
@@ -27,7 +24,7 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-router.post("/token", async (req, res, next) => {
+router.post("/token", authenticateRefreshToken, async (req, res, next) => {
   try {
     const result = tokenUser(req, res, next);
     return result;
@@ -36,16 +33,19 @@ router.post("/token", async (req, res, next) => {
   }
 });
 
-router.get("/", authenticateToken, async (req, res, next) => {
+router.get("/", authenticateAccessToken, async (req, res, next) => {
   try {
-    const { _id, email } = req.user;
+    const { _id, email, token} = req.user;
+    if (!token) {
+      return res.status(401).send();
+    }
     res.json({ _id, email });
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/logout", authenticateToken, async (req, res, next) => {
+router.get("/logout", authenticateAccessToken, async (req, res, next) => {
   try {
     const result = await logoutUser(req, res, next);
     return result;

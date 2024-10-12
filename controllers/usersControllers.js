@@ -69,7 +69,7 @@ const loginUser = async (req, res) => {
 };
 
 const tokenUser = async (req, res) => {
-  const { token } = req.body;
+  const { token } = req.user;
   if (!token)
     return res.status(401).json({ message: "Refresh token required" });
 
@@ -96,10 +96,10 @@ const tokenUser = async (req, res) => {
 
 const logoutUser = async (req, res) => {
   const { _id } = req.user; //coming from validation next()
-
+  console.log(_id);
   await User.findByIdAndUpdate(_id, { token: null });
 
-  res.status(204).send();
+  res.status(204).json({ message: 'Logged out successfully' });
 };
 
 //prettier-ignore
